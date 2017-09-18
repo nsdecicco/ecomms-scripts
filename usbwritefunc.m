@@ -1,24 +1,13 @@
-function writefunc(GPIB, DATA, AMP, FRQ, OFFSET, TERM)
+function usbwritefunc(ADDR, DATA, AMP, FRQ, OFFSET, TERM)
 
 %--------------------------------------------------------------------------
-% Last Update: 1.23.09
+% Updated: 9/15/17
+% Updated: 1.23.09
 % This function will write the waveform stored in the vector Data to the
-% device located at the GPIB address 'GPIBAddy'.  The waveform will be set
+% device located at the VISA address 'ADDR'.  The waveform will be set
 % the an Amplitude of 'AMP', a frequency of 'FRQ', and an offset of
 % 'OFFSET'.  The vector 'DATA' must be normalized to range between the
-% values -1 to 1.  The GPIB can be either a variable or vector.  If GPIB is
-% sent as a single value variable, then it will represent the GPIB address
-% of the function generator that the signal is to be sent to.  In lab 201
-% this is 10 for the top function generator, and 11 for the bottom function
-% generator.  The board index for the GPIB card will then be assumed to be
-% 8.  Which is the case in lab 201.  If the computer that this program is
-% being run on has a different board index simply send a vector with 2
-% columns and 1 row  as 'GPIB'.  The vale in 'GPIB(1,1)' will represent the
-% GPIB address of the instrument you are trying to access.  The value in
-% 'GPIB(1,2)' will represent the board index for the GPIB card in the
-% computer that you are using.  You can find this information out by
-% opening the Agilent IO Control or other control program for the
-% instruments you are working on.  This program will only work with Agilent
+% values -1 to 1.  This program will only work with Agilent
 % technology at the moment.
 %
 % The Amplitude can range from 12.5mV to 10V (peak to peak).
@@ -57,10 +46,10 @@ function writefunc(GPIB, DATA, AMP, FRQ, OFFSET, TERM)
 %'writefunc':
 %
 %
-%       writefunc(GPIB, DATA)
+%       writefunc(ADDR, DATA)
 %
-%           This syntax will output the data to the device located at GPIB
-%           address 'GPIBAddy'.  The vector 'DATA' must be normalized to be
+%           This syntax will output the data to the device located at VISA
+%           address 'ADDR'.  The vector 'DATA' must be normalized to be
 %           in the range of -1 to 1.  If it is not, an error will be
 %           reported.  The following will be used as default settings for
 %           the other inputs:  Amplitude: 1 Vpp, Frequency: 1 kHz, Offset:
@@ -68,10 +57,10 @@ function writefunc(GPIB, DATA, AMP, FRQ, OFFSET, TERM)
 %           50 Ohms.
 %
 %
-%       writefunc(GPIB, DATA, AMP)
+%       writefunc(ADDR, DATA, AMP)
 %
-%           This syntax will output the data to the device located at GPIB
-%           address 'GPIBAddy'.  The amplitude of the wave will be set to
+%           This syntax will output the data to the device located at VISA
+%           address 'ADDR'.  The amplitude of the wave will be set to
 %           'AMP'.  This is a peak to peak value, which means if 'AMP' =
 %           10, then Vmax = 5 Volts and Vmin = -5 Volts.  The vector 'DATA'
 %           must be normalized to be in the range of -1 to 1.  If it is
@@ -79,10 +68,10 @@ function writefunc(GPIB, DATA, AMP, FRQ, OFFSET, TERM)
 %           used for the other inputs:  Frequency: 1 kHz, Offset: 0 Vpp.
 %
 %
-%       writefunc(GPIB, DATA, AMP, FRQ)
+%       writefunc(ADDR, DATA, AMP, FRQ)
 %
-%           This syntax will output the data to the device located at GPIB
-%           address 'GPIBAddy'.  The amplitude of the wave will be set to
+%           This syntax will output the data to the device located at VISA
+%           address 'ADDR'.  The amplitude of the wave will be set to
 %           'AMP'.  This is a peak to peak value, which means if 'AMP' =
 %           10, then Vmax = 5 Volts and Vmin = -5 Volts.  The vector 'DATA'
 %           must be normalized to be in the range of -1 to 1.  If it is
@@ -91,10 +80,10 @@ function writefunc(GPIB, DATA, AMP, FRQ, OFFSET, TERM)
 %           default for the offset: 0 Vpp.
 %
 %
-%       writefunc(GPIB, DATA, AMP, FRQ, OFFSET)
+%       writefunc(ADDR, DATA, AMP, FRQ, OFFSET)
 %
-%           This syntax will output the data to the device located at GPIB
-%           address 'GPIBAddy'.  The amplitude of the wave will be set to
+%           This syntax will output the data to the device located at VISA
+%           address 'ADDR'.  The amplitude of the wave will be set to
 %           'AMP'.  This is a peak to peak value, which means if 'AMP' =
 %           10, then Vmax = 5 Volts and Vmin = -5 Volts.  The vector 'DATA'
 %           must be normalized to be in the range of -1 to 1.  If it is
@@ -102,7 +91,7 @@ function writefunc(GPIB, DATA, AMP, FRQ, OFFSET, TERM)
 %           be set to the value 'FRQ' and with an offset of 'OFFSET'.
 %
 %
-%       writefunc(GPIB, DATA, AMP, FRQ, OFFSET, TERM)
+%       writefunc(ADDR, DATA, AMP, FRQ, OFFSET, TERM)
 %
 %           This syntax does the same as the above, but allows the user to
 %           set the output termination of the function generator.  There
@@ -133,36 +122,19 @@ function writefunc(GPIB, DATA, AMP, FRQ, OFFSET, TERM)
 
 
     %--------------------------------------------------------------------------
-    % Generate object name for the function generator.
-    if (length(GPIB) > 1)
-        board = num2str(GPIB(1,2));
-        name = ['obj', num2str(GPIB(1,1))];
-        obj_name = genvarname(name);
-    else
-        board = '8';
-        name = ['obj', num2str(GPIB)];
-        obj_name = genvarname(name);
+    
+    
+    open = instrfind('Status', 'open');
+    if ~isempty(open)
+        fclose(open);
     end
+    
+    dev = visa('agilent', ADDR);
 
-    % Create a GPIB object for the Function Generator
-    eval([obj_name, ' = instrfind(','''Type''', ',', '''gpib''', ',', '''BoardIndex''', ',', '''', board, '''', ',', '''PrimaryAddress''', ',', num2str(GPIB(1,1)), ',', '''Tag''', ',', '''''', ');'])
+    set(dev, 'OutputBufferSize', 1048576);
+    set(dev, 'Timeout', 120);
 
-    % Create the GPIB object if it does not exist
-    % otherwise use the object that was found.
-    if isempty(eval(obj_name))
-        eval([obj_name, ' = gpib(', '''AGILENT''', ', ', board, ', ', num2str(GPIB(1,1)), ');']);
-    else
-        fclose(eval(obj_name));
-        eval([obj_name, ' = ', obj_name, '(1)'])
-    end
-
-
-    set(eval(obj_name), 'OutputBufferSize', 1048576);
-    set(eval(obj_name), 'Timeout', 120);
-
-    % Connect to instrument object, fungen.
-    fopen(eval(obj_name));
-
+    fopen(dev);
 
     %--------------------------------------------------------------------------
 
@@ -178,25 +150,25 @@ function writefunc(GPIB, DATA, AMP, FRQ, OFFSET, TERM)
             %characteristics supplied by the user (or defaults if none are sent to
             %function.
             output = ['APPL:SIN ', num2str(FRQ), ',', num2str(AMP), ',', num2str(OFFSET)];
-            fprintf(eval(obj_name), output);
+            fprintf(dev, output);
         elseif (strncmp(DATA, 'SQU', 3))
             %Changes the output of the Function Generator to a Square wave with the
             %characteristics supplied by the user (or defaults if none are sent to
             %function.
             output = ['APPL:SQU ', num2str(FRQ), ',', num2str(AMP), ',', num2str(OFFSET)];
-            fprintf(eval(obj_name), output);
+            fprintf(dev, output);
         elseif (strncmp(DATA, 'TRI', 3))
             %Changes the output of the Function Generator to a Triangle wave with the
             %characteristics supplied by the user (or defaults if none are sent to
             %function.
             output = ['APPL:TRI ', num2str(FRQ), ',', num2str(AMP), ',', num2str(OFFSET)];
-            fprintf(eval(obj_name), output);
+            fprintf(dev, output);
         elseif (strncmp(DATA, 'RAMP', 4))
             %Changes the output of the Function Generator to a Ramp wave with the
             %characteristics supplied by the user (or defaults if none are sent to
             %function.
             output = ['APPL:RAMP ', num2str(FRQ), ',', num2str(AMP), ',', num2str(OFFSET)];
-            fprintf(eval(obj_name), output);
+            fprintf(dev, output);
         else
             error('Incorrect String value for DATA.  Options are SIN, SQU, RAMP or TRI');
         end
@@ -213,43 +185,49 @@ function writefunc(GPIB, DATA, AMP, FRQ, OFFSET, TERM)
         output = ['DATA VOLATILE', mstring];
 
         %Put Function Generator in proper Mode
-        fprintf(eval(obj_name), 'FUNC:SHAP USER');
+        % is this the 33210A? setting up an arb is different on this model.
+        if 1
+            fprintf(dev, 'FUNC:USER VOLATILE');
+        else
+            fprintf(dev, 'FUNC:SHAP USER');
+        end
 
         % Write data to volatile memory in function generator:
         disp('Please wait, this might take up to 1.5 minutes!!!');
-        fprintf(eval(obj_name), output);
+        fprintf(dev, output);
 
         % Make function generator output waveform in volatile memory:
-        fprintf(eval(obj_name), 'FUNC:USER VOLATILE');
+        fprintf(dev, 'FUNC:USER VOLATILE');
 
         % Set the Amplitude of the wave to the specified amount
         amp = ['VOLT ', num2str(AMP)];
-        fprintf(eval(obj_name), amp);
+        fprintf(dev, amp);
 
         % Set the Frequency of the wave to the specified amount
         freq = ['FREQ ', num2str(FRQ)];
-        fprintf(eval(obj_name), freq);
+        fprintf(dev, freq);
 
         % Set the Offset of the wave to the specified amount
         off = ['VOLT:OFFS ', num2str(OFFSET)];
-        fprintf(eval(obj_name), off);
+        fprintf(dev, off);
     end
     
     if (ischar(TERM))
         TERM = upper(TERM);
         if (strcmp(TERM, 'INF'))
             load = ['OUTP:LOAD ', TERM];
-            fprintf(eval(obj_name), load);
+            fprintf(dev, load);
         else
             error('Incorrect value for output Termination.  Must be either 50 or INFinity');
         end
     else
         if (TERM == 50)
-            fprintf(eval(obj_name), 'OUTP:LOAD 50');
+            fprintf(dev, 'OUTP:LOAD 50');
         else
             error('Incorrect value for output Termination.  Must be either 50 or INFinity');
         end
     end
-    
-    open = instrfind('Status', 'open');
-    fclose(open);
+
+    fclose(dev);
+
+end
