@@ -105,6 +105,7 @@ function [data, t] = getscopedat(GPIB, Channel)
     %Acquire Y origin and Y increment Values
     yorg = str2double(query(eval(obj_name),':WAVEFORM:YOR?'));
     yinc = str2double(query(eval(obj_name),':WAVEFORM:YINC?'));
+    yref = str2double(query(eval(obj_name),':WAVEFORM:YREF?'));
 
     %Setup the Scope for proper output format
     fprintf(eval(obj_name), 'WAVEFORM:FORMAT BYTE');
@@ -120,7 +121,7 @@ function [data, t] = getscopedat(GPIB, Channel)
 
     %Adjust data and time variables with x/y increments/origins
     t = t1 * xinc + xorg;
-    data = data1 * yinc + yorg;
+    data = (data1-yref) * yinc + yorg;
 
     plot(t,data);
     
