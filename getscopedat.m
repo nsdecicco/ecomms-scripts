@@ -113,7 +113,7 @@ function [data, t] = getscopedat(GPIB, Channel)
     
     %Instruct the scope to make current data available to acquire
     fprintf(eval(obj_name), 'WAVEFORM:DATA?');
-    data1 = binblockread(eval(obj_name), 'int8');
+    data1 = binblockread(eval(obj_name), 'uint8');
     
     %Create a time variable with the same lenght as "data"
     t1 = 0:(length(data1)-1);
